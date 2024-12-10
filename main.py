@@ -4,6 +4,7 @@ import telebot
 from flask import Flask, request
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
+import pytz  # Додаємо імпорт для роботи з часовими поясами
 from dotenv import load_dotenv
 
 # Завантаження змінних середовища
@@ -41,7 +42,9 @@ def send_daily_quote():
         message_text = f"💎 Цитати про криптовалюту на кожен день... \n\n{quote}"
         
         bot.send_message(CHANNEL_NAME, message_text)
-        print(f"Цитату надіслано успішно: {datetime.now()}")
+        warsaw_tz = pytz.timezone('Europe/Warsaw')
+        current_time = datetime.now(warsaw_tz)
+        print(f"Цитату надіслано успішно: {current_time}")
         
         current_index += 1
     except Exception as e:
@@ -49,7 +52,7 @@ def send_daily_quote():
 
 # Налаштування планувальника
 scheduler = BackgroundScheduler()
-scheduler.add_job(send_daily_quote, 'cron', hour=9, minute=0)
+scheduler.add_job(send_daily_quote, 'cron', hour=9, minute=0, timezone=pytz.timezone('Europe/Warsaw'))
 scheduler.start()
 
 @bot.message_handler(commands=['start', 'help'])
@@ -59,27 +62,4 @@ def send_welcome(message):
 @bot.message_handler(commands=['test'])
 def test_quote(message):
     send_daily_quote()
-    bot.reply_to(message, "✅ Тестова цитата надіслана!")
-
-@app.route('/', methods=['GET', 'POST'])
-def webhook():
-    if request.method == 'POST':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return 'OK', 200
-    return 'Бот працює', 200
-
-if __name__ == '__main__':
-    # Спроба встановити вебхук
-    try:
-        WEBHOOK_URL = os.getenv('WEBHOOK_URL')
-        if WEBHOOK_URL:
-            bot.set_webhook(url=WEBHOOK_URL)
-            print(f"Вебхук встановлено на {WEBHOOK_URL}")
-    except Exception as e:
-        print(f"Помилка встановлення вебхука: {e}")
-    
-    # Запуск Flask застосунку
-    port = int(os.getenv('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+    bot.reply_to(message, "✅ Те
