@@ -74,4 +74,10 @@ if __name__ == '__main__':
         WEBHOOK_URL = os.getenv('WEBHOOK_URL')
         if WEBHOOK_URL:
             bot.set_webhook(url=WEBHOOK_URL)
-            pri
+            print(f"Вебхук встановлено на {WEBHOOK_URL}")
+    except Exception as e:
+        print(f"Помилка встановлення вебхука: {e}")
+    
+    # Запуск Flask застосунку
+    port = int(os.getenv('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
