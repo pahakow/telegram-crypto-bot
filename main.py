@@ -18,15 +18,19 @@ CHANNEL_NAME = os.getenv('CHANNEL_NAME', '@cruptoprofit_ua')
 bot = telebot.TeleBot(API_TOKEN)
 app = Flask(__name__)
 
+# Змінна для відстеження останньої відправки
+last_send_time = None
+
 def get_next_quote():
     try:
         with open('quotes.json', 'r', encoding='utf-8') as file:
             quotes = json.load(file)
         
         # Отримуємо день року (1-365)
-        day_of_year = datetime.now(pytz.timezone('Europe/Warsaw')).timetuple().tm_yday
+        warsaw_tz = pytz.timezone('Europe/Warsaw')
+        day_of_year = datetime.now(warsaw_tz).timetuple().tm_yday
         
-        # Вибираємо цитату за номером дня (з урахуванням формату вашого JSON)
+        # Вибираємо цитату за номером дня
         quote = quotes.get(str(day_of_year), "Немає цитати на сьогодні.")
         return quote
     except Exception as e:
@@ -34,20 +38,29 @@ def get_next_quote():
         return "Помилка отримання цитати"
 
 def send_daily_quote():
+    global last_send_time
+    warsaw_tz = pytz.timezone('Europe/Warsaw')
+    current_time = datetime.now(warsaw_tz)
+
+    # Перевіряємо чи не відправляли сьогодні
+    if last_send_time is not None:
+        if current_time.date() == last_send_time.date():
+            print(f"Цитату вже було надіслано сьогодні о {last_send_time}")
+            return
+
     try:
         quote = get_next_quote()
         message_text = f"💎 Цитати про криптовалюту на кожен день... \n\n{quote}"
         
         bot.send_message(CHANNEL_NAME, message_text)
-        warsaw_tz = pytz.timezone('Europe/Warsaw')
-        current_time = datetime.now(warsaw_tz)
+        last_send_time = current_time
         print(f"Цитату надіслано успішно: {current_time}")
     except Exception as e:
         print(f"Помилка надсилання цитати: {e}")
 
 # Налаштування планувальника
-scheduler = BackgroundScheduler()
-scheduler.add_job(send_daily_quote, 'cron', hour=9, minute=0, timezone=pytz.timezone('Europe/Warsaw'))
+scheduler = BackgroundScheduler(timezone=pytz.timezone('Europe/Warsaw'))
+scheduler.add_job(send_daily_quote, 'cron', hour=9, minute=0)
 scheduler.start()
 
 @bot.message_handler(commands=['start', 'help'])
@@ -56,6 +69,8 @@ def send_welcome(message):
 
 @bot.message_handler(commands=['test'])
 def test_quote(message):
+    global last_send_time
+    last_send_time = None  # Скидаємо для тестування
     send_daily_quote()
     bot.reply_to(message, "✅ Тестова цитата надіслана!")
 
